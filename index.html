@@ -974,12 +974,15 @@ function enterClient() {
   readonly = true;
   document.body.classList.add('present', 'client');
   $('#clientBanner').classList.remove('hidden');
-  $('#btnExit').classList.toggle('hidden', !!window.__SHARED__);
+  // Trava o botão "Sair" tanto no arquivo HTML exportado (__SHARED__) quanto
+  // no link fixo do cliente (?c=TOKEN, __SERVER_CLIENT_TOKEN__) — em nenhum
+  // dos dois casos o cliente deve conseguir voltar pro modo de edição.
+  $('#btnExit').classList.toggle('hidden', !!(window.__SHARED__ || window.__SERVER_CLIENT_TOKEN__));
   updateClientBanner();
   render(); applyEditableState();
 }
 function exitView() {
-  if (window.__SHARED__) return;
+  if (window.__SHARED__ || window.__SERVER_CLIENT_TOKEN__) return;
   readonly = false; clientMode = false;
   document.body.classList.remove('present', 'client');
   $('#clientBanner').classList.add('hidden');
