@@ -427,18 +427,26 @@ async function syncFeedbackToServerIfLinked() {
 }
 
 async function copyClientLink() {
+  let url;
   try {
     const { clientToken } = await ensureServerLink();
     await publishToServer();
-    const url = `${location.origin}${location.pathname}?c=${clientToken}`;
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      await navigator.clipboard.writeText(url);
-      toast('Link do cliente copiado!');
-    } else {
-      window.prompt('Copie o link do cliente:', url);
-    }
+    url = `${location.origin}${location.pathname}?c=${clientToken}`;
   } catch (e) {
-    toast('Não foi possível gerar o link agora');
+    // Falha real: não deu pra criar/publicar o calendário no servidor.
+    toast('Não foi possível gerar o link agora — verifique a conexão');
+    return;
+  }
+  // A partir daqui o link já existe e está publicado. Copiar para a área de
+  // transferência é só uma conveniência — se falhar (permissão do navegador,
+  // por exemplo depois de duas chamadas de rede o "gesto do usuário" pode
+  // expirar), mostramos o link pra copiar manualmente em vez de dar erro.
+  try {
+    if (!navigator.clipboard || !navigator.clipboard.writeText) throw new Error('sem clipboard API');
+    await navigator.clipboard.writeText(url);
+    toast('Link do cliente copiado!');
+  } catch (e) {
+    window.prompt('Não deu pra copiar automaticamente. Copie o link abaixo:', url);
   }
 }
 
