@@ -1,0 +1,1221 @@
+<!doctype html>
+<html lang="pt-BR"><head><script>window["__codeletBootstrap__"]=JSON.parse('{"A":"A","B":"20260715-05-d05fd84"}');</script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Calendário de Conteúdo</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: {
+          sans: ['Manrope', 'system-ui', 'sans-serif'],
+          mono: ['"IBM Plex Mono"', 'ui-monospace', 'monospace'],
+        },
+        colors: {
+          ink:    'oklch(0.27 0.012 80)',
+          sub:    'oklch(0.52 0.012 80)',
+          faint:  'oklch(0.68 0.010 80)',
+          line:   'oklch(0.922 0.004 90)',
+          line2:  'oklch(0.965 0.003 90)',
+          paper:  'oklch(0.987 0.003 95)',
+          card:   'oklch(1 0 0)',
+          accent: 'oklch(0.55 0.155 270)',
+          accentd:'oklch(0.47 0.16 270)',
+          accents:'oklch(0.955 0.028 270)',
+        }
+      }
+    }
+  }
+</script>
+<style>
+  html, body { height: 100%; }
+  body { font-family: 'Manrope', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: oklch(0.88 0.005 90); border-radius: 99px; border: 3px solid transparent; background-clip: content-box; }
+  ::-webkit-scrollbar-thumb:hover { background: oklch(0.82 0.006 90); background-clip: content-box; border: 3px solid transparent; }
+
+  .ph-stripes {
+    background-image: repeating-linear-gradient(45deg,
+      oklch(0.955 0.004 90) 0 9px, oklch(0.978 0.003 90) 9px 18px);
+  }
+  .modal-enter { animation: modalIn .22s cubic-bezier(.2,.8,.2,1); }
+  .scrim-enter { animation: scrimIn .2s ease; }
+  @keyframes modalIn { from { opacity: 0; transform: translateY(12px) scale(.985); } to { opacity: 1; transform: none; } }
+  @keyframes scrimIn { from { opacity: 0; } to { opacity: 1; } }
+  .cell-pop { animation: cellPop .18s ease; }
+  @keyframes cellPop { from { transform: scale(.97); } to { transform: scale(1); } }
+
+  input::placeholder, textarea::placeholder { color: oklch(0.74 0.01 80); }
+  .field { transition: border-color .15s, box-shadow .15s, background .15s; }
+  .field:focus { outline: none; border-color: oklch(0.55 0.155 270); box-shadow: 0 0 0 3px oklch(0.55 0.155 270 / .14); }
+
+  /* Presentation / read-only mode */
+  body.present .edit-only { display: none !important; }
+  body.present .present-hide { display: none !important; }
+
+  /* Print → PDF */
+  @media print {
+    @page { size: A4 landscape; margin: 12mm; }
+    .no-print { display: none !important; }
+    body { background: #fff !important; }
+    #app { height: auto !important; overflow: visible !important; }
+    #calendarWrap { display: block !important; }
+    #calendarGrid { break-inside: avoid; }
+    .print-block { box-shadow: none !important; }
+    .day-cell { break-inside: avoid; }
+  }
+  [contenteditable]:focus { outline: none; }
+  [contenteditable].editing:hover { background: oklch(0.955 0.028 270 / .5); border-radius: 6px; }
+</style>
+</head>
+
+<body class="bg-paper text-ink">
+
+<div id="app" class="h-full flex flex-col">
+
+  <!-- ============ HEADER ============ -->
+  <header class="shrink-0 border-b border-line bg-card/85 backdrop-blur-sm sticky top-0 z-30">
+    <div class="px-4 sm:px-6 lg:px-8 pt-4 pb-3 flex items-start justify-between gap-4 flex-wrap">
+      <div class="flex items-center gap-3 min-w-0">
+        <div class="w-9 h-9 rounded-xl bg-accent text-white grid place-items-center shrink-0 shadow-sm">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M3 10h18M8 2v4M16 2v4"></path></svg>
+        </div>
+        <div class="min-w-0">
+          <h1 id="docTitle" data-edit="" class="text-[17px] sm:text-lg font-extrabold tracking-tight leading-tight truncate max-w-[60vw] editing">Calendário de Conteúdo</h1>
+          <p id="docSub" data-edit="" class="text-[12.5px] text-sub leading-tight truncate max-w-[60vw] editing">Planejamento mensal de postagens</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2 no-print">
+        <button id="btnClient" class="edit-only inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-line bg-card text-[13px] font-semibold text-ink hover:bg-line2 transition">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="m16 11 2 2 4-4"></path></svg>
+          <span class="hidden sm:inline">Modo cliente</span>
+        </button>
+        <button id="btnPresent" class="edit-only inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-line bg-card text-[13px] font-semibold text-ink hover:bg-line2 transition">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M16 21h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
+          <span class="hidden sm:inline">Apresentar</span>
+        </button>
+        <button id="btnExit" class="hidden inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-line bg-card text-[13px] font-semibold text-ink hover:bg-line2 transition">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"></path></svg>Sair da apresentação</button>
+        <div class="edit-only relative">
+          <button id="btnShare" class="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-ink text-white text-[13px] font-semibold hover:bg-black transition">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v14"></path></svg>
+            <span class="hidden sm:inline">Compartilhar</span>
+          </button>
+          <div id="shareMenu" class="hidden absolute right-0 mt-2 w-64 bg-card border border-line rounded-xl shadow-xl shadow-black/5 p-1.5 z-40">
+            <button data-share="clientlink" class="w-full text-left px-3 py-2.5 rounded-lg hover:bg-line2 transition flex items-start gap-2.5">
+              <svg class="w-4 h-4 mt-0.5 text-accent shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+              <span><span class="block text-[13px] font-semibold text-ink">Copiar link do cliente</span><span class="block text-[11.5px] text-sub leading-snug">Link único, sempre com a versão mais recente</span></span>
+            </button>
+            <div class="my-1 border-t border-line2"></div>
+            <button data-share="html" class="w-full text-left px-3 py-2.5 rounded-lg hover:bg-line2 transition flex items-start gap-2.5">
+              <svg class="w-4 h-4 mt-0.5 text-accent shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"></path></svg>
+              <span><span class="block text-[13px] font-semibold text-ink">Baixar HTML único</span><span class="block text-[11.5px] text-sub leading-snug">Arquivo só de visualização para enviar ao cliente</span></span>
+            </button>
+            <button data-share="pdf" class="w-full text-left px-3 py-2.5 rounded-lg hover:bg-line2 transition flex items-start gap-2.5">
+              <svg class="w-4 h-4 mt-0.5 text-accent shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"></rect><path d="M7 8h10M7 12h10M7 16h6"></path></svg>
+              <span><span class="block text-[13px] font-semibold text-ink">Exportar PDF</span><span class="block text-[11.5px] text-sub leading-snug">Abre a impressão — salve como PDF</span></span>
+            </button>
+            <button data-share="present" class="w-full text-left px-3 py-2.5 rounded-lg hover:bg-line2 transition flex items-start gap-2.5">
+              <svg class="w-4 h-4 mt-0.5 text-accent shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M16 21h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
+              <span><span class="block text-[13px] font-semibold text-ink">Modo apresentação</span><span class="block text-[11.5px] text-sub leading-snug">Tela cheia, sem edição</span></span>
+            </button>
+            <div class="my-1 border-t border-line2"></div>
+            <button data-share="import" class="w-full text-left px-3 py-2.5 rounded-lg hover:bg-line2 transition flex items-start gap-2.5">
+              <svg class="w-4 h-4 mt-0.5 text-accent shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V9m0 0 4 4m-4-4-4 4M5 3h14"></path></svg>
+              <span><span class="block text-[13px] font-semibold text-ink">Importar feedback do cliente</span><span class="block text-[11.5px] text-sub leading-snug">Carregue o arquivo de respostas enviado de volta</span></span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Month nav + legend -->
+    <div class="px-4 sm:px-6 lg:px-8 pb-3 flex items-center justify-between gap-4 flex-wrap">
+      <div class="flex items-center gap-1.5">
+        <button id="prevM" class="w-9 h-9 grid place-items-center rounded-lg border border-line bg-card hover:bg-line2 transition text-ink">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg>
+        </button>
+        <button id="nextM" class="w-9 h-9 grid place-items-center rounded-lg border border-line bg-card hover:bg-line2 transition text-ink">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg>
+        </button>
+        <h2 id="monthLabel" class="text-[17px] sm:text-xl font-bold tracking-tight ml-1.5 capitalize">Maio 2026</h2>
+        <button id="todayBtn" class="no-print ml-2 h-8 px-3 rounded-lg border border-line bg-card text-[12.5px] font-semibold text-sub hover:text-ink hover:bg-line2 transition">Hoje</button>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <div id="legend" class="hidden md:flex items-center gap-3 text-[11.5px] text-sub"></div>
+        <button id="addBtn" class="edit-only inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg bg-accent text-white text-[13px] font-bold hover:bg-accentd transition shadow-sm">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"></path></svg>Nova postagem</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ============ CLIENT BANNER ============ -->
+  <div id="clientBanner" class="hidden shrink-0 border-b border-line bg-accents/70 px-4 sm:px-6 lg:px-8 py-2.5 flex items-center justify-between gap-3 flex-wrap">
+    <div class="flex items-center gap-2 text-[13px] text-ink min-w-0">
+      <span class="w-6 h-6 rounded-lg bg-accent text-white grid place-items-center shrink-0"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="m16 11 2 2 4-4"></path></svg></span>
+      <span class="font-bold">Modo cliente</span>
+      <span class="text-sub hidden md:inline">— revise cada postagem e aprove ou solicite ajustes.</span>
+    </div>
+    <div class="flex items-center gap-3">
+      <div id="approvalSummary" class="hidden sm:flex items-center gap-2.5 text-[11.5px] font-semibold"></div>
+      <button id="btnDownloadFb" class="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-line bg-card text-[12.5px] font-semibold text-ink hover:bg-line2 transition">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"></path></svg>
+        <span class="hidden sm:inline">Baixar feedback</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ============ CALENDAR ============ -->
+  <main id="calendarWrap" class="flex-1 overflow-auto px-4 sm:px-6 lg:px-8 py-5">
+    <!-- Desktop grid -->
+    <div id="calendarGrid" class="hidden md:flex flex-col bg-card border border-line rounded-2xl overflow-hidden shadow-sm print-block">
+      <div id="weekHead" class="grid grid-cols-7 border-b border-line bg-line2/60"></div>
+      <div id="daysGrid" class="grid grid-cols-7 flex-1"></div>
+    </div>
+    <!-- Mobile agenda -->
+    <div id="agendaList" class="md:hidden space-y-3"></div>
+  </main>
+</div>
+
+<!-- ============ DAY MODAL ============ -->
+<div id="dayModal" class="hidden fixed inset-0 z-50">
+  <div class="modal-scrim scrim-enter absolute inset-0 bg-ink/35 backdrop-blur-[2px]"></div>
+  <div class="absolute inset-0 flex items-end sm:items-center justify-center p-0 sm:p-6">
+    <div class="modal-enter relative w-full sm:max-w-lg bg-paper sm:rounded-2xl rounded-t-2xl shadow-2xl border border-line max-h-[92vh] sm:max-h-[85vh] flex flex-col overflow-hidden">
+      <div class="flex items-center justify-between px-5 py-4 border-b border-line bg-card">
+        <div>
+          <p id="dayModalWeekday" class="text-[12px] font-semibold uppercase tracking-wide text-accent"></p>
+          <h3 id="dayModalDate" class="text-lg font-bold tracking-tight"></h3>
+        </div>
+        <button data-close="" class="w-9 h-9 grid place-items-center rounded-lg hover:bg-line2 transition text-sub hover:text-ink">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"></path></svg>
+        </button>
+      </div>
+      <div id="dayModalBody" class="flex-1 overflow-auto p-4 space-y-3"></div>
+      <div class="edit-only shrink-0 p-4 border-t border-line bg-card">
+        <button id="dayAddPost" class="w-full inline-flex items-center justify-center gap-2 h-11 rounded-xl bg-accent text-white text-[14px] font-bold hover:bg-accentd transition shadow-sm">
+          <svg class="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"></path></svg>Adicionar postagem neste dia</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ EDITOR MODAL ============ -->
+<div id="editorModal" class="hidden fixed inset-0 z-[60]">
+  <div class="modal-scrim scrim-enter absolute inset-0 bg-ink/40 backdrop-blur-[2px]"></div>
+  <div class="absolute inset-0 flex items-end sm:items-center justify-center p-0 sm:p-6">
+    <div class="modal-enter relative w-full sm:max-w-3xl bg-paper sm:rounded-2xl rounded-t-2xl shadow-2xl border border-line max-h-[95vh] sm:max-h-[90vh] flex flex-col overflow-hidden">
+      <div class="flex items-center justify-between px-5 py-3.5 border-b border-line bg-card shrink-0">
+        <div class="flex items-center gap-2.5">
+          <button id="editorBack" data-close="" class="w-8 h-8 grid place-items-center rounded-lg hover:bg-line2 transition text-sub hover:text-ink">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg>
+          </button>
+          <h3 id="editorTitle" class="text-[15px] font-bold tracking-tight">Nova postagem</h3>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="deletePost" class="edit-only hidden w-9 h-9 grid place-items-center rounded-lg border border-line text-sub hover:text-red-600 hover:border-red-200 hover:bg-red-50 transition">
+            <svg class="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"></path></svg>
+          </button>
+          <button data-close="" class="w-9 h-9 grid place-items-center rounded-lg hover:bg-line2 transition text-sub hover:text-ink">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"></path></svg>
+          </button>
+        </div>
+      </div>
+
+      <div id="editorBody" class="flex-1 overflow-auto"></div>
+
+      <div class="edit-only shrink-0 p-4 border-t border-line bg-card flex items-center justify-end gap-2.5">
+        <button data-close="" class="h-10 px-4 rounded-lg border border-line bg-card text-[13.5px] font-semibold text-sub hover:text-ink hover:bg-line2 transition">Cancelar</button>
+        <button id="savePost" class="h-10 px-5 rounded-lg bg-accent text-white text-[13.5px] font-bold hover:bg-accentd transition shadow-sm">Salvar postagem</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ FEEDBACK MODAL ============ -->
+<div id="fbModal" class="hidden fixed inset-0 z-[70]">
+  <div class="modal-scrim scrim-enter absolute inset-0 bg-ink/40 backdrop-blur-[2px]"></div>
+  <div class="absolute inset-0 flex items-end sm:items-center justify-center p-0 sm:p-6">
+    <div class="modal-enter relative w-full sm:max-w-md bg-paper sm:rounded-2xl rounded-t-2xl shadow-2xl border border-line overflow-hidden">
+      <div class="flex items-center justify-between px-5 py-3.5 border-b border-line bg-card">
+        <h3 id="fbTitle" class="text-[15px] font-bold tracking-tight">Comentário</h3>
+        <button data-close="" class="w-9 h-9 grid place-items-center rounded-lg hover:bg-line2 transition text-sub hover:text-ink">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"></path></svg>
+        </button>
+      </div>
+      <div class="p-4 space-y-2">
+        <p id="fbHint" class="text-[12.5px] text-sub"></p>
+        <textarea id="fbText" rows="4" placeholder="Escreva sua observação para o social media…" class="field w-full px-3 py-2 rounded-lg border border-line bg-card text-[13.5px] leading-relaxed resize-y"></textarea>
+      </div>
+      <div class="p-4 border-t border-line bg-card flex items-center justify-end gap-2.5">
+        <button data-close="" class="h-10 px-4 rounded-lg border border-line bg-card text-[13.5px] font-semibold text-sub hover:text-ink hover:bg-line2 transition">Cancelar</button>
+        <button id="fbConfirm" class="h-10 px-5 rounded-lg bg-accent text-white text-[13.5px] font-bold hover:bg-accentd transition shadow-sm">Enviar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<input id="fbImport" type="file" accept="application/json,.json" class="hidden">
+
+<!-- toast -->
+<div id="toast" class="hidden fixed bottom-5 left-1/2 -translate-x-1/2 z-[80] bg-ink text-white text-[13px] font-semibold px-4 py-2.5 rounded-xl shadow-lg"></div>
+
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<script>
+/* ============================================================
+   CONFIG
+============================================================ */
+const FORMATS = {
+  reels:     { label: 'Reels',         bg:'oklch(0.95 0.05 350)',  fg:'oklch(0.45 0.16 350)',  dot:'oklch(0.6 0.18 350)' },
+  story:     { label: 'Story',         bg:'oklch(0.955 0.05 70)',  fg:'oklch(0.46 0.13 60)',   dot:'oklch(0.68 0.15 65)' },
+  carrossel: { label: 'Carrossel',     bg:'oklch(0.95 0.045 250)', fg:'oklch(0.46 0.15 260)',  dot:'oklch(0.6 0.16 260)' },
+  estatico:  { label: 'Post estático', bg:'oklch(0.95 0.045 160)', fg:'oklch(0.42 0.12 160)',  dot:'oklch(0.58 0.13 160)' },
+};
+const STATUSES = {
+  ideia:     { label: 'Ideia / Rascunho', bg:'oklch(0.95 0.003 90)',  fg:'oklch(0.45 0.01 80)',  dot:'oklch(0.7 0.01 80)' },
+  produzir:  { label: 'A produzir',       bg:'oklch(0.95 0.045 250)', fg:'oklch(0.45 0.14 260)', dot:'oklch(0.6 0.16 260)' },
+  aprovacao: { label: 'Em aprovação',     bg:'oklch(0.955 0.05 75)',  fg:'oklch(0.47 0.12 65)',  dot:'oklch(0.72 0.14 70)' },
+  aprovado:  { label: 'Aprovado',         bg:'oklch(0.95 0.05 155)',  fg:'oklch(0.42 0.12 158)', dot:'oklch(0.6 0.14 158)' },
+  agendado:  { label: 'Agendado',         bg:'oklch(0.95 0.05 295)',  fg:'oklch(0.46 0.15 295)', dot:'oklch(0.6 0.16 295)' },
+  publicado: { label: 'Publicado',        bg:'oklch(0.93 0.06 180)',  fg:'oklch(0.4 0.09 195)',  dot:'oklch(0.55 0.1 195)' },
+  ajuste:    { label: 'Ajuste',           bg:'oklch(0.95 0.045 25)',  fg:'oklch(0.5 0.16 25)',   dot:'oklch(0.62 0.18 25)' },
+};
+const APPROVAL = {
+  aguardando: { label:'Aguardando',         bg:'oklch(0.955 0.05 75)',  fg:'oklch(0.47 0.12 65)',  dot:'oklch(0.72 0.14 70)' },
+  aprovado:   { label:'Aprovado',           bg:'oklch(0.95 0.05 155)',  fg:'oklch(0.42 0.12 158)', dot:'oklch(0.56 0.14 158)' },
+  ajuste:     { label:'Ajuste solicitado',  bg:'oklch(0.95 0.045 25)',  fg:'oklch(0.5 0.16 25)',   dot:'oklch(0.62 0.18 25)' },
+};
+const PLATFORMS = ['Instagram','TikTok','Facebook','YouTube','LinkedIn','Pinterest','Outro'];
+const WEEKDAYS = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+const WEEKDAYS_FULL = ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];
+const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+/* ============================================================
+   STATE + STORAGE
+============================================================ */
+const STORE_KEY = 'cc_calendar_v1';
+const today = new Date();
+let state = {
+  title: 'Calendário de Conteúdo',
+  sub: 'Planejamento mensal de postagens',
+  posts: [],
+};
+let view = { y: today.getFullYear(), m: today.getMonth() };
+let readonly = false;
+let clientMode = false;
+
+/* feedback store — kept SEPARATE from content so the social media edits posts
+   and the client only adds approval + comments, with no conflict */
+const FB_KEY = 'cc_feedback_v1';
+let feedback = {};
+function loadFeedback() {
+  try { const raw = localStorage.getItem(FB_KEY); if (raw) feedback = JSON.parse(raw); } catch(e) {}
+  if (window.__FEEDBACK__ && Object.keys(feedback).length === 0) feedback = JSON.parse(JSON.stringify(window.__FEEDBACK__));
+}
+function saveFeedback() { try { localStorage.setItem(FB_KEY, JSON.stringify(feedback)); } catch(e) {} }
+function fbOf(id) { return feedback[id] || { approval:'aguardando', notes:[] }; }
+function getApproval(id) { return (feedback[id] && feedback[id].approval) || 'aguardando'; }
+function getNotes(id) { return (feedback[id] && feedback[id].notes) || []; }
+function setApproval(id, status) { const f = feedback[id] || (feedback[id] = { approval:'aguardando', notes:[] }); f.approval = status; saveFeedback(); }
+function addNote(id, text) { const f = feedback[id] || (feedback[id] = { approval:'aguardando', notes:[] }); f.notes = f.notes || []; f.notes.push({ ts: Date.now(), text }); saveFeedback(); }
+
+function load() {
+  loadFeedback();
+  // Shared/client file injected data takes priority
+  if (window.__SHARED__) {
+    state = window.__SHARED__;
+    readonly = true;
+    clientMode = true;
+    if (state.posts && state.posts.length) {
+      const d = parseYMD(state.posts[0].date);
+      view = { y: d.getFullYear(), m: d.getMonth() };
+    }
+    return;
+  }
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (raw) state = Object.assign(state, JSON.parse(raw));
+  } catch(e) {}
+}
+function save() {
+  if (readonly) return;
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch(e) {}
+  syncToServerIfLinked();
+}
+
+/* ============================================================
+   SERVER LINK (Supabase) — link fixo do cliente, sempre atualizado
+   Não interfere em nada do fluxo local/offline existente:
+   localStorage, "Baixar HTML único", PDF e importação de feedback
+   continuam funcionando exatamente como antes.
+============================================================ */
+const SUPABASE_URL = 'https://ibeiotkkjzvpbjrpuyma.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImliZWlvdGtranp2cGJqcnB1eW1hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQxMDc2MzgsImV4cCI6MjA5OTY4MzYzOH0.jQV3GXFJOBdY2YYnneXvdfGcem9VIgZyi6lz2ckRXEs';
+const ADMIN_TOKEN_KEY = 'cc_admin_token_v1';
+const CLIENT_TOKEN_KEY = 'cc_client_token_v1';
+
+let supabaseClient = null;
+try {
+  if (window.supabase && window.supabase.createClient) {
+    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }
+} catch(e) {}
+
+// Admin: creates (or reuses) the server-side calendar + tokens for this browser.
+async function ensureServerLink() {
+  let adminToken = localStorage.getItem(ADMIN_TOKEN_KEY);
+  let clientToken = localStorage.getItem(CLIENT_TOKEN_KEY);
+  if (adminToken && clientToken) return { adminToken, clientToken };
+  if (!supabaseClient) throw new Error('Supabase indisponível');
+  const { data, error } = await supabaseClient.rpc('cc_create_calendar');
+  if (error || !data || !data.length) throw error || new Error('Falha ao criar link');
+  adminToken = data[0].admin_token;
+  clientToken = data[0].client_token;
+  localStorage.setItem(ADMIN_TOKEN_KEY, adminToken);
+  localStorage.setItem(CLIENT_TOKEN_KEY, clientToken);
+  return { adminToken, clientToken };
+}
+
+// Admin: pushes current title/sub/posts to the server copy (never touches feedback).
+async function publishToServer() {
+  const adminToken = localStorage.getItem(ADMIN_TOKEN_KEY);
+  if (!adminToken || !supabaseClient) return;
+  try {
+    await supabaseClient.rpc('cc_publish_calendar', {
+      p_admin_token: adminToken,
+      p_title: state.title,
+      p_sub: state.sub,
+      p_posts: state.posts
+    });
+  } catch(e) {}
+}
+
+// Called from save() — keeps the server copy fresh automatically once a
+// client link has been generated. No-op if no link exists yet (default state).
+function syncToServerIfLinked() {
+  if (readonly) return;
+  if (!localStorage.getItem(ADMIN_TOKEN_KEY)) return;
+  publishToServer();
+}
+
+// Client (opened via ?c=TOKEN): fetches the calendar by its public client token.
+async function loadFromClientToken(token) {
+  if (!supabaseClient) return false;
+  try {
+    const { data, error } = await supabaseClient.rpc('cc_get_calendar', { p_client_token: token });
+    if (error || !data || !data.length) return false;
+    const row = data[0];
+    state = { title: row.title, sub: row.sub, posts: row.posts || [] };
+    feedback = row.feedback || {};
+    window.__SERVER_CLIENT_TOKEN__ = token;
+    clientMode = true;
+    readonly = true;
+    if (state.posts && state.posts.length) {
+      const d = parseYMD(state.posts[0].date);
+      view = { y: d.getFullYear(), m: d.getMonth() };
+    }
+    return true;
+  } catch(e) { return false; }
+}
+
+// Called from refreshAfterFeedback() — only active when the calendar was
+// loaded through a server client link (?c=TOKEN). Scoped to feedback only.
+async function syncFeedbackToServerIfLinked() {
+  const token = window.__SERVER_CLIENT_TOKEN__;
+  if (!token || !supabaseClient) return;
+  try {
+    await supabaseClient.rpc('cc_submit_feedback', { p_client_token: token, p_feedback: feedback });
+  } catch(e) {}
+}
+
+// Admin action: "Copiar link do cliente" in the share menu.
+async function copyClientLink() {
+  try {
+    const { clientToken } = await ensureServerLink();
+    await publishToServer();
+    const url = `${location.origin}${location.pathname}?c=${clientToken}`;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(url);
+      toast('Link do cliente copiado!');
+    } else {
+      window.prompt('Copie o link do cliente:', url);
+    }
+  } catch (e) {
+    toast('Não foi possível gerar o link agora');
+  }
+}
+
+/* ============================================================
+   UTILS
+============================================================ */
+const $ = s => document.querySelector(s);
+const esc = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+function ymd(y,m,d){ return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`; }
+function parseYMD(s){ const [y,m,d] = s.split('-').map(Number); return new Date(y, m-1, d); }
+function uid(){ return 'p'+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+function postsFor(dateStr){ return state.posts.filter(p => p.date === dateStr).sort((a,b)=>(a.time||'99').localeCompare(b.time||'99')); }
+function isToday(y,m,d){ return y===today.getFullYear() && m===today.getMonth() && d===today.getDate(); }
+
+let toastT;
+function toast(msg){
+  const t = $('#toast'); t.textContent = msg; t.classList.remove('hidden');
+  clearTimeout(toastT); toastT = setTimeout(()=>t.classList.add('hidden'), 2200);
+}
+
+/* ============================================================
+   CHIPS / SMALL UI
+============================================================ */
+function chip(label, c, opts={}) {
+  const sz = opts.sm ? 'text-[10.5px] px-1.5 py-0.5' : 'text-[11.5px] px-2 py-1';
+  const dot = opts.dot ? `<span class="w-1.5 h-1.5 rounded-full shrink-0" style="background:${c.dot}"></span>` : '';
+  return `<span class="inline-flex items-center gap-1 rounded-md font-semibold ${sz} whitespace-nowrap" style="background:${c.bg};color:${c.fg}">${dot}${esc(label)}</span>`;
+}
+function fmtIcon(fmt, cls) {
+  const p = {
+    reels:'<path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2"/>',
+    story:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/>',
+    carrossel:'<rect width="13" height="13" x="8" y="8" rx="2"/><path d="M4 16V6a2 2 0 0 1 2-2h10"/>',
+    estatico:'<rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="1.6"/><path d="m21 15-3.5-3.5L9 20"/>',
+  }[fmt] || '';
+  return `<svg class="${cls||'w-3.5 h-3.5'}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+}
+function fmtTs(ts) {
+  const d = new Date(ts);
+  return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')} · ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+// small corner badge on thumbnails (only when approved / adjustment)
+function approvalBadge(id) {
+  const a = getApproval(id);
+  if (a === 'aguardando') return '';
+  const c = APPROVAL[a];
+  const path = a === 'aprovado' ? '<path d="M20 6 9 17l-5-5"/>' : '<path d="M12 9v4M12 17h.01"/>';
+  return `<span class="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full grid place-items-center text-white border-2 border-white shadow-sm" style="background:${c.dot}"><svg class="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">${path}</svg></span>`;
+}
+function notesHtml(id) {
+  const notes = getNotes(id);
+  if (!notes.length) return '';
+  return `<div class="space-y-1.5">${notes.map(n => `
+    <div class="bg-line2/70 border border-line rounded-lg px-3 py-2">
+      <p class="text-[13px] text-ink leading-snug whitespace-pre-wrap">${esc(n.text)}</p>
+      <p class="flex items-center gap-1.5 font-mono text-[10px] text-faint mt-1.5"><span class="w-1.5 h-1.5 rounded-full bg-accent"></span>Cliente · ${fmtTs(n.ts)}</p>
+    </div>`).join('')}</div>`;
+}
+// read-only block shown to the social media inside the editor
+function approvalInfoBlock(id) {
+  const a = getApproval(id), c = APPROVAL[a], notes = getNotes(id);
+  return `
+    <div class="rounded-xl border border-line bg-line2/40 p-3">
+      <div class="flex items-center justify-between gap-2 mb-1">
+        <span class="text-[11.5px] font-bold uppercase tracking-wide text-faint">Aprovação do cliente</span>
+        ${chip(c.label, c, {dot:true})}
+      </div>
+      ${notes.length ? `<div class="mt-2">${notesHtml(id)}</div>` : `<p class="text-[12px] text-sub">Nenhum comentário do cliente ainda.</p>`}
+    </div>`;
+}
+// approval panel shown in the client/presentation viewer
+function approvalPanel(id) {
+  const a = getApproval(id), c = APPROVAL[a], notes = getNotes(id);
+  const status = `<div class="flex items-center gap-2"><span class="text-[11px] font-bold uppercase tracking-wide text-faint">Aprovação</span>${chip(c.label, c, {dot:true})}</div>`;
+  if (!clientMode) {
+    return `<div class="space-y-2.5 pt-3 border-t border-line">${status}${notesHtml(id)}</div>`;
+  }
+  return `
+    <div class="space-y-3 pt-3 border-t border-line">
+      ${status}
+      ${notesHtml(id)}
+      <div class="grid grid-cols-2 gap-2">
+        <button id="fbApprove" class="h-11 rounded-xl text-white text-[13.5px] font-bold transition hover:brightness-95 inline-flex items-center justify-center gap-1.5 ${a==='aprovado'?'ring-2 ring-offset-2':''}" style="background:${APPROVAL.aprovado.dot};box-shadow:0 0 0 0 ${APPROVAL.aprovado.dot}">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Aprovar
+        </button>
+        <button id="fbAdjust" class="h-11 rounded-xl text-white text-[13.5px] font-bold transition hover:brightness-95 inline-flex items-center justify-center gap-1.5" style="background:${APPROVAL.ajuste.dot}">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>Solicitar ajuste
+        </button>
+      </div>
+      <button id="fbComment" class="w-full h-9 rounded-lg border border-line bg-card text-[12.5px] font-semibold text-sub hover:text-ink hover:bg-line2 transition">Adicionar comentário</button>
+    </div>`;
+}
+
+/* ============================================================
+   RENDER — header / legend
+============================================================ */
+function renderChrome() {
+  $('#docTitle').textContent = state.title || 'Calendário de Conteúdo';
+  $('#docSub').textContent = state.sub || '';
+  $('#monthLabel').textContent = `${MONTHS[view.m]} ${view.y}`;
+  // legend
+  const leg = Object.entries(FORMATS).map(([k,c]) =>
+    `<span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full" style="background:${c.dot}"></span>${c.label}</span>`
+  ).join('');
+  $('#legend').innerHTML = leg;
+}
+
+/* ============================================================
+   RENDER — calendar grid (desktop)
+============================================================ */
+function renderGrid() {
+  $('#weekHead').innerHTML = WEEKDAYS.map(d =>
+    `<div class="px-3 py-2.5 text-[11.5px] font-bold uppercase tracking-wide text-faint">${d}</div>`
+  ).join('');
+
+  const first = new Date(view.y, view.m, 1);
+  const startDow = first.getDay();
+  const daysInMonth = new Date(view.y, view.m+1, 0).getDate();
+  const totalCells = Math.ceil((startDow + daysInMonth) / 7) * 7;
+
+  let html = '';
+  for (let i = 0; i < totalCells; i++) {
+    const dayNum = i - startDow + 1;
+    const inMonth = dayNum >= 1 && dayNum <= daysInMonth;
+    const isLastCol = (i % 7) === 6;
+    const isLastRow = i >= totalCells - 7;
+    const borders = `${isLastCol?'':'border-r'} ${isLastRow?'':'border-b'} border-line`;
+
+    if (!inMonth) {
+      html += `<div class="${borders} bg-line2/30 min-h-[116px]"></div>`;
+      continue;
+    }
+    const dateStr = ymd(view.y, view.m, dayNum);
+    const ps = postsFor(dateStr);
+    const tdy = isToday(view.y, view.m, dayNum);
+
+    const numEl = tdy
+      ? `<span class="w-6 h-6 grid place-items-center rounded-full bg-accent text-white text-[12.5px] font-bold">${dayNum}</span>`
+      : `<span class="text-[13px] font-semibold ${ps.length?'text-ink':'text-faint'}">${dayNum}</span>`;
+
+    const shown = ps.slice(0,3).map(p => postChip(p)).join('');
+    const more = ps.length > 3 ? `<div class="text-[11px] font-semibold text-sub px-1 pt-0.5">+${ps.length-3} mais</div>` : '';
+
+    html += `
+      <div class="day-cell ${borders} min-h-[116px] p-1.5 flex flex-col gap-1 hover:bg-accents/40 transition cursor-pointer group" data-day="${dateStr}">
+        <div class="flex items-center justify-between px-1 pt-0.5">
+          ${numEl}
+          <button class="edit-only opacity-0 group-hover:opacity-100 w-5 h-5 grid place-items-center rounded-md text-sub hover:text-accent hover:bg-accents transition no-print" data-quickadd="${dateStr}" title="Adicionar">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+          </button>
+        </div>
+        <div class="flex flex-col gap-1 overflow-hidden">${shown}${more}</div>
+      </div>`;
+  }
+  $('#daysGrid').innerHTML = html;
+}
+
+function postChip(p) {
+  const f = FORMATS[p.format] || FORMATS.estatico;
+  const s = STATUSES[p.status] || STATUSES.ideia;
+  const thumb = p.image
+    ? `<span class="w-6 h-6 rounded-md bg-cover bg-center shrink-0 border border-black/5" style="background-image:url('${p.image}')"></span>`
+    : (p.video
+        ? `<span class="w-6 h-6 rounded-md grid place-items-center shrink-0 text-white" style="background:${f.dot}">${fmtIcon('reels','w-3 h-3')}</span>`
+        : `<span class="w-6 h-6 rounded-md grid place-items-center shrink-0" style="background:${f.bg};color:${f.fg}">${fmtIcon(p.format,'w-3 h-3')}</span>`);
+  const time = p.time ? `<span class="text-[10px] font-mono text-faint shrink-0">${esc(p.time)}</span>` : '';
+  const title = p.caption ? esc(p.caption) : (p.objective ? esc(p.objective) : f.label);
+  return `
+    <button data-post="${p.id}" class="w-full text-left flex items-center gap-1.5 px-1 py-1 rounded-lg hover:bg-card hover:shadow-sm border border-transparent hover:border-line transition group/chip">
+      <span class="relative shrink-0">${thumb}${approvalBadge(p.id)}</span>
+      <span class="flex-1 min-w-0">
+        <span class="block text-[11.5px] font-semibold text-ink truncate leading-tight">${title}</span>
+        <span class="flex items-center gap-1 mt-0.5">
+          <span class="w-1.5 h-1.5 rounded-full shrink-0" style="background:${s.dot}"></span>
+          <span class="text-[10px] text-sub truncate leading-tight">${s.label}</span>
+        </span>
+      </span>
+      ${time}
+    </button>`;
+}
+
+/* ============================================================
+   RENDER — agenda (mobile)
+============================================================ */
+function renderAgenda() {
+  const daysInMonth = new Date(view.y, view.m+1, 0).getDate();
+  let html = '';
+  let any = false;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = ymd(view.y, view.m, d);
+    const ps = postsFor(dateStr);
+    if (!ps.length) continue;
+    any = true;
+    const dow = new Date(view.y, view.m, d).getDay();
+    const tdy = isToday(view.y, view.m, d);
+    html += `
+      <div data-day="${dateStr}" class="bg-card border border-line rounded-2xl overflow-hidden shadow-sm">
+        <div class="flex items-center gap-2.5 px-4 py-3 border-b border-line2 ${tdy?'bg-accents/50':''}">
+          <span class="${tdy?'bg-accent text-white':'bg-line2 text-ink'} w-9 h-9 rounded-xl grid place-items-center font-bold text-[15px]">${d}</span>
+          <div><p class="text-[11px] font-semibold uppercase tracking-wide text-faint leading-tight">${WEEKDAYS_FULL[dow]}</p><p class="text-[12px] text-sub leading-tight">${ps.length} ${ps.length>1?'postagens':'postagem'}</p></div>
+        </div>
+        <div class="p-2 space-y-1.5">${ps.map(p => agendaRow(p)).join('')}</div>
+      </div>`;
+  }
+  if (!any) {
+    html = `<div class="text-center py-16 px-6">
+      <div class="w-12 h-12 mx-auto rounded-2xl bg-line2 grid place-items-center text-faint mb-3">
+        <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/></svg>
+      </div>
+      <p class="text-[14px] font-semibold text-ink">Nenhuma postagem em ${MONTHS[view.m]}</p>
+      <p class="text-[12.5px] text-sub mt-1">${readonly?'':'Toque em “Nova postagem” para começar.'}</p>
+    </div>`;
+  }
+  $('#agendaList').innerHTML = html;
+}
+function agendaRow(p) {
+  const f = FORMATS[p.format] || FORMATS.estatico;
+  const s = STATUSES[p.status] || STATUSES.ideia;
+  const thumb = p.image
+    ? `<span class="w-12 h-12 rounded-lg bg-cover bg-center shrink-0 border border-black/5" style="background-image:url('${p.image}')"></span>`
+    : `<span class="w-12 h-12 rounded-lg grid place-items-center shrink-0" style="background:${f.bg};color:${f.fg}">${fmtIcon(p.format,'w-5 h-5')}</span>`;
+  return `
+    <button data-post="${p.id}" class="w-full text-left flex items-center gap-3 p-2 rounded-xl hover:bg-line2/60 transition">
+      <span class="relative shrink-0">${thumb}${approvalBadge(p.id)}</span>
+      <span class="flex-1 min-w-0">
+        <span class="flex items-center gap-1.5 mb-1">${chip(f.label,f,{sm:true})}${p.time?`<span class="text-[11px] font-mono text-faint">${esc(p.time)}</span>`:''}</span>
+        <span class="block text-[13.5px] font-semibold text-ink truncate leading-tight">${p.caption?esc(p.caption):(p.objective?esc(p.objective):f.label)}</span>
+        <span class="flex items-center gap-1 mt-1"><span class="w-1.5 h-1.5 rounded-full" style="background:${s.dot}"></span><span class="text-[11.5px] text-sub">${s.label}</span></span>
+      </span>
+    </button>`;
+}
+
+function render() {
+  renderChrome();
+  renderGrid();
+  renderAgenda();
+}
+
+/* ============================================================
+   DAY MODAL
+============================================================ */
+let activeDate = null;
+function openDay(dateStr) {
+  activeDate = dateStr;
+  const d = parseYMD(dateStr);
+  $('#dayModalWeekday').textContent = WEEKDAYS_FULL[d.getDay()];
+  $('#dayModalDate').textContent = `${d.getDate()} de ${MONTHS[d.getMonth()]}`;
+  renderDayBody();
+  showModal('#dayModal');
+}
+function renderDayBody() {
+  const ps = postsFor(activeDate);
+  const body = $('#dayModalBody');
+  if (!ps.length) {
+    body.innerHTML = `<div class="text-center py-10 px-4">
+      <div class="ph-stripes w-full h-28 rounded-xl border border-line mb-4 grid place-items-center">
+        <span class="font-mono text-[11px] text-faint">sem postagens</span>
+      </div>
+      <p class="text-[13.5px] text-sub">${readonly?'Nenhuma postagem planejada para este dia.':'Adicione a primeira postagem deste dia.'}</p>
+    </div>`;
+    return;
+  }
+  body.innerHTML = ps.map(p => dayCard(p)).join('');
+}
+function dayCard(p) {
+  const f = FORMATS[p.format] || FORMATS.estatico;
+  const s = STATUSES[p.status] || STATUSES.ideia;
+  const media = p.image
+    ? `<div class="w-full sm:w-28 h-28 rounded-lg bg-cover bg-center shrink-0 border border-line" style="background-image:url('${p.image}')"></div>`
+    : (p.video
+      ? `<div class="w-full sm:w-28 h-28 rounded-lg shrink-0 border border-line grid place-items-center text-white relative overflow-hidden" style="background:${f.dot}"><svg class="w-7 h-7" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></div>`
+      : `<div class="ph-stripes w-full sm:w-28 h-28 rounded-lg shrink-0 border border-line grid place-items-center"><span style="color:${f.fg}">${fmtIcon(p.format,'w-6 h-6')}</span></div>`);
+  return `
+    <button data-post="${p.id}" class="w-full text-left bg-card border border-line rounded-xl p-2.5 flex flex-col sm:flex-row gap-3 hover:border-accent/40 hover:shadow-sm transition">
+      ${media}
+      <div class="flex-1 min-w-0 py-0.5">
+        <div class="flex items-center gap-1.5 flex-wrap mb-1.5">${chip(f.label,f)}${chip(s.label,s,{dot:true})}${chip(APPROVAL[getApproval(p.id)].label, APPROVAL[getApproval(p.id)], {dot:true})}${p.time?`<span class="text-[12px] font-mono text-faint inline-flex items-center gap-1"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>${esc(p.time)}</span>`:''}</div>
+        ${p.caption?`<p class="text-[13.5px] font-semibold text-ink leading-snug line-clamp-2">${esc(p.caption)}</p>`:`<p class="text-[13.5px] text-faint italic">Sem legenda</p>`}
+        ${p.platform?`<p class="text-[11.5px] text-sub mt-1.5">${esc(p.platform)}${p.objective?' · '+esc(p.objective):''}</p>`:(p.objective?`<p class="text-[11.5px] text-sub mt-1.5">${esc(p.objective)}</p>`:'')}
+        ${p.hashtags?`<p class="text-[11.5px] text-accent font-medium mt-1 truncate">${esc(p.hashtags)}</p>`:''}
+      </div>
+    </button>`;
+}
+
+/* ============================================================
+   EDITOR MODAL
+============================================================ */
+let editing = null; // post object being edited (draft)
+let editingExisting = false;
+
+function openEditor(post, dateStr) {
+  editingExisting = !!post;
+  editing = post ? JSON.parse(JSON.stringify(post)) : {
+    id: uid(), date: dateStr || activeDate || ymd(view.y, view.m, today.getDate()),
+    format: 'estatico', status: 'ideia', time: '', platform: 'Instagram',
+    objective: '', audio: '', caption: '', briefing: '', hashtags: '', image: '', video: ''
+  };
+  $('#editorTitle').textContent = clientMode ? 'Revisar postagem' : (editingExisting ? 'Editar postagem' : 'Nova postagem');
+  $('#deletePost').classList.toggle('hidden', !editingExisting);
+  renderEditor();
+  showModal('#editorModal');
+}
+
+function renderEditor() {
+  const p = editing;
+  const ro = readonly;
+  const d = parseYMD(p.date);
+  const dateLabel = `${WEEKDAYS[d.getDay()]}, ${d.getDate()} ${MONTHS[d.getMonth()].slice(0,3)}`;
+
+  if (ro) { renderViewer(p); return; }
+
+  const fmtBtns = Object.entries(FORMATS).map(([k,c]) => `
+    <button data-fmt="${k}" class="fmt-btn flex items-center gap-1.5 h-9 px-2.5 rounded-lg border text-[12.5px] font-semibold transition ${p.format===k?'border-transparent text-white shadow-sm':'border-line bg-card text-sub hover:bg-line2'}" style="${p.format===k?`background:${c.dot}`:''}">
+      ${fmtIcon(k,'w-4 h-4')}<span>${c.label}</span>
+    </button>`).join('');
+
+  const statusOpts = Object.entries(STATUSES).map(([k,c]) =>
+    `<option value="${k}" ${p.status===k?'selected':''}>${c.label}</option>`).join('');
+  const platOpts = PLATFORMS.map(pl => `<option value="${pl}" ${p.platform===pl?'selected':''}>${pl}</option>`).join('');
+
+  $('#editorBody').innerHTML = `
+  <div class="grid md:grid-cols-[300px_1fr] gap-0">
+    <!-- MEDIA -->
+    <div class="p-4 md:border-r border-line space-y-3 bg-line2/30">
+      <div>
+        <label class="block text-[11.5px] font-bold uppercase tracking-wide text-faint mb-1.5">Imagem</label>
+        <div id="imgDrop" class="relative rounded-xl border-2 border-dashed ${p.image?'border-transparent':'border-line'} overflow-hidden cursor-pointer group transition hover:border-accent/50">
+          ${p.image
+            ? `<img src="${p.image}" class="w-full aspect-square object-cover">
+               <button id="imgRemove" class="absolute top-2 right-2 w-7 h-7 grid place-items-center rounded-lg bg-ink/70 text-white hover:bg-ink transition"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>`
+            : `<div class="ph-stripes aspect-square grid place-items-center text-center px-4">
+                 <div><svg class="w-7 h-7 mx-auto text-faint mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.5-3.5L9 20"/></svg>
+                 <p class="text-[12px] font-semibold text-sub">Clique ou arraste</p><p class="font-mono text-[10px] text-faint mt-0.5">PNG · JPG</p></div>
+               </div>`}
+        </div>
+        <input id="imgInput" type="file" accept="image/*" class="hidden">
+      </div>
+      <div>
+        <label class="block text-[11.5px] font-bold uppercase tracking-wide text-faint mb-1.5">Vídeo (preview)</label>
+        ${p.video
+          ? `<div class="relative rounded-xl overflow-hidden border border-line"><video src="${p.video}" controls class="w-full max-h-52 bg-black"></video><button id="vidRemove" class="absolute top-2 right-2 w-7 h-7 grid place-items-center rounded-lg bg-ink/70 text-white hover:bg-ink transition"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>`
+          : `<button id="vidDrop" class="w-full rounded-xl border-2 border-dashed border-line py-4 grid place-items-center hover:border-accent/50 transition"><svg class="w-6 h-6 text-faint mb-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2"/></svg><span class="text-[12px] font-semibold text-sub">Adicionar vídeo</span><span class="font-mono text-[10px] text-faint mt-0.5">MP4 · MOV</span></button>`}
+        <input id="vidInput" type="file" accept="video/*" class="hidden">
+      </div>
+    </div>
+
+    <!-- FIELDS -->
+    <div class="p-4 space-y-4">
+      ${approvalInfoBlock(p.id)}
+      <!-- date + time + platform -->
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-[11.5px] font-bold uppercase tracking-wide text-faint mb-1.5">Data</label>
+          <input id="fDate" type="date" value="${p.date}" class="field w-full h-9 px-2.5 rounded-lg border border-line bg-card text-[13px] font-medium">
+        </div>
+        <div>
+          <label class="block text-[11.5px] font-bold uppercase tracking-wide text-faint mb-1.5">Horário</label>
+          <input id="fTime" type="time" value="${esc(p.time)}" class="field w-full h-9 px-2.5 rounded-lg border border-line bg-card text-[13px] font-medium">
+        </div>
+      </div>
+
+      <!-- format -->
+      <div>
+        <label class="block text-[11.5px] font-bold uppercase tracking-wide text-faint mb-1.5">Formato</label>
+        <div id="fmtGroup" class="flex flex-wrap gap-1.5">${fmtBtns}</div>
+      </div>
+
+      <!-- status + platform -->
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-[11.5px] font-bold uppercase tracking-wide text-faint mb-1.5">Status</label>
+          <select id="fStatus" class="field w-full h-9 px-2.5 rounded-lg border border-line bg-card text-[13px] font-medium">${statusOpts}</select>
+        </div>
+        <div>
+          <label class="block text-[11.5px] font-bold uppercase tracking-wide text-faint mb-1.5">Plataforma</label>
+          <select id="fPlatform" class="field w-full h-9 px-2.5 rounded-lg border border-line bg-card text-[13px] font-medium">${platOpts}</select>
+        </div>
+      </div>
+
+      <!-- caption -->
+      <div>
+        <label class="block text-[11.5px] font-bold uppercase tracking-wide text-faint mb-1.5">Legenda</label>
+        <textarea id="fCaption" rows="3" placeholder="Escreva a legenda da publicação…" class="field w-full px-3 py-2 rounded-lg border border-line bg-card text-[13.5px] leading-relaxed resize-y">${esc(p.caption)}</textarea>
+      </div>
+
+      <!-- objective + audio -->
+      <div class="grid sm:grid-cols-2 gap-3">
+        <div>
+          <label class="block text-[11.5px] font-bold uppercase tracking-wide text-faint mb-1.5">Objetivo / CTA</label>
+          <input id="fObjective" value="${esc(p.objective)}" placeholder="Ex: Gerar agendamentos" class="field w-full h-9 px-2.5 rounded-lg border border-line bg-card text-[13px]">
+        </div>
+        <div>
+          <label class="block text-[11.5px] font-bold uppercase tracking-wide text-faint mb-1.5">Música / Áudio</label>
+          <input id="fAudio" value="${esc(p.audio)}" placeholder="Ex: Trend do momento" class="field w-full h-9 px-2.5 rounded-lg border border-line bg-card text-[13px]">
+        </div>
+      </div>
+
+      <!-- briefing -->
+      <div>
+        <label class="block text-[11.5px] font-bold uppercase tracking-wide text-faint mb-1.5">Briefing</label>
+        <textarea id="fBriefing" rows="3" placeholder="Roteiro, referências, instruções de produção…" class="field w-full px-3 py-2 rounded-lg border border-line bg-card text-[13.5px] leading-relaxed resize-y">${esc(p.briefing)}</textarea>
+      </div>
+
+      <!-- hashtags -->
+      <div>
+        <label class="block text-[11.5px] font-bold uppercase tracking-wide text-faint mb-1.5">Hashtags</label>
+        <textarea id="fHashtags" rows="2" placeholder="#marketing #socialmedia #conteudo" class="field w-full px-3 py-2 rounded-lg border border-line bg-card text-[13px] font-medium text-accent resize-y">${esc(p.hashtags)}</textarea>
+      </div>
+    </div>
+  </div>`;
+
+  wireEditor();
+}
+
+function renderViewer(p) {
+  const f = FORMATS[p.format] || FORMATS.estatico;
+  const s = STATUSES[p.status] || STATUSES.ideia;
+  const d = parseYMD(p.date);
+  const media = p.video
+    ? `<video src="${p.video}" controls class="w-full max-h-[60vh] bg-black rounded-xl"></video>`
+    : (p.image
+      ? `<img src="${p.image}" class="w-full max-h-[60vh] object-contain bg-line2 rounded-xl">`
+      : `<div class="ph-stripes w-full aspect-video rounded-xl grid place-items-center"><span style="color:${f.fg}">${fmtIcon(p.format,'w-8 h-8')}</span></div>`);
+  $('#editorBody').innerHTML = `
+    <div class="grid md:grid-cols-[1fr_320px] gap-0">
+      <div class="p-4 bg-line2/30 md:border-r border-line">${media}</div>
+      <div class="p-5 space-y-4">
+        <div class="flex flex-wrap items-center gap-1.5">${chip(f.label,f)}${chip(s.label,s,{dot:true})}</div>
+        <div class="text-[12.5px] text-sub font-medium">${WEEKDAYS_FULL[d.getDay()]}, ${d.getDate()} de ${MONTHS[d.getMonth()]} ${p.time?'· '+esc(p.time):''}</div>
+        ${p.platform?`<div><p class="text-[11px] font-bold uppercase tracking-wide text-faint mb-0.5">Plataforma</p><p class="text-[14px] font-semibold text-ink">${esc(p.platform)}</p></div>`:''}
+        ${p.caption?`<div><p class="text-[11px] font-bold uppercase tracking-wide text-faint mb-0.5">Legenda</p><p class="text-[14px] text-ink leading-relaxed whitespace-pre-wrap">${esc(p.caption)}</p></div>`:''}
+        ${p.objective?`<div><p class="text-[11px] font-bold uppercase tracking-wide text-faint mb-0.5">Objetivo / CTA</p><p class="text-[13.5px] text-ink">${esc(p.objective)}</p></div>`:''}
+        ${p.audio?`<div><p class="text-[11px] font-bold uppercase tracking-wide text-faint mb-0.5">Música / Áudio</p><p class="text-[13.5px] text-ink">${esc(p.audio)}</p></div>`:''}
+        ${p.briefing?`<div><p class="text-[11px] font-bold uppercase tracking-wide text-faint mb-0.5">Briefing</p><p class="text-[13.5px] text-ink leading-relaxed whitespace-pre-wrap">${esc(p.briefing)}</p></div>`:''}
+        ${p.hashtags?`<div><p class="text-[11px] font-bold uppercase tracking-wide text-faint mb-0.5">Hashtags</p><p class="text-[13px] text-accent font-medium leading-relaxed">${esc(p.hashtags)}</p></div>`:''}
+        ${approvalPanel(p.id)}
+      </div>
+    </div>`;
+  wireViewer(p.id);
+}
+function wireViewer(id) {
+  const approve = $('#fbApprove'), adjust = $('#fbAdjust'), comment = $('#fbComment');
+  if (approve) approve.addEventListener('click', () => {
+    setApproval(id, 'aprovado');
+    refreshAfterFeedback();
+    toast('Postagem aprovada ✓');
+  });
+  if (adjust) adjust.addEventListener('click', () => {
+    openFeedbackModal({
+      title: 'Solicitar ajuste', confirm: 'Enviar ajuste', requireText: true,
+      hint: 'Descreva o que precisa ser alterado nesta postagem.',
+      onConfirm: (t) => { setApproval(id, 'ajuste'); addNote(id, t); },
+      toast: 'Ajuste solicitado'
+    });
+  });
+  if (comment) comment.addEventListener('click', () => {
+    openFeedbackModal({
+      title: 'Comentário', confirm: 'Enviar comentário', requireText: true,
+      hint: 'Sua observação ficará registrada para o social media.',
+      onConfirm: (t) => { addNote(id, t); },
+      toast: 'Comentário enviado'
+    });
+  });
+}
+function refreshAfterFeedback() {
+  if (editing) renderEditor();
+  render();
+  updateClientBanner();
+  syncFeedbackToServerIfLinked();
+}
+
+function wireEditor() {
+  // format buttons
+  $('#fmtGroup').querySelectorAll('[data-fmt]').forEach(b => {
+    b.addEventListener('click', () => { editing.format = b.dataset.fmt; renderEditor(); });
+  });
+  // image
+  const imgInput = $('#imgInput');
+  $('#imgDrop').addEventListener('click', e => { if (e.target.closest('#imgRemove')) return; imgInput.click(); });
+  imgInput.addEventListener('change', e => handleFile(e.target.files[0], 'image'));
+  setupDrop($('#imgDrop'), 'image');
+  const imgRemove = $('#imgRemove');
+  if (imgRemove) imgRemove.addEventListener('click', e => { e.stopPropagation(); editing.image=''; renderEditor(); });
+  // video
+  const vidInput = $('#vidInput');
+  const vidDrop = $('#vidDrop');
+  if (vidDrop) { vidDrop.addEventListener('click', () => vidInput.click()); setupDrop(vidDrop, 'video'); }
+  vidInput.addEventListener('change', e => handleFile(e.target.files[0], 'video'));
+  const vidRemove = $('#vidRemove');
+  if (vidRemove) vidRemove.addEventListener('click', e => { e.stopPropagation(); editing.video=''; renderEditor(); });
+  // text fields (live-bind to draft)
+  const bind = (id, key) => { const el = $(id); if (el) el.addEventListener('input', () => editing[key] = el.value); };
+  bind('#fTime','time'); bind('#fCaption','caption'); bind('#fBriefing','briefing');
+  bind('#fHashtags','hashtags'); bind('#fObjective','objective'); bind('#fAudio','audio');
+  $('#fStatus').addEventListener('change', e => editing.status = e.target.value);
+  $('#fPlatform').addEventListener('change', e => editing.platform = e.target.value);
+  $('#fDate').addEventListener('change', e => editing.date = e.target.value);
+}
+
+function setupDrop(el, kind) {
+  if (!el) return;
+  ['dragenter','dragover'].forEach(ev => el.addEventListener(ev, e => { e.preventDefault(); el.classList.add('border-accent'); }));
+  ['dragleave','drop'].forEach(ev => el.addEventListener(ev, e => { e.preventDefault(); el.classList.remove('border-accent'); }));
+  el.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) handleFile(f, kind); });
+}
+function handleFile(file, kind) {
+  if (!file) return;
+  if (kind === 'image' && !file.type.startsWith('image/')) { toast('Selecione um arquivo de imagem'); return; }
+  if (kind === 'video' && !file.type.startsWith('video/')) { toast('Selecione um arquivo de vídeo'); return; }
+  if (file.size > 8 * 1024 * 1024) { toast('Arquivo grande — pode pesar no navegador'); }
+  const reader = new FileReader();
+  reader.onload = () => { editing[kind] = reader.result; renderEditor(); };
+  reader.readAsDataURL(file);
+}
+
+function persistEditing() {
+  const idx = state.posts.findIndex(p => p.id === editing.id);
+  if (idx >= 0) state.posts[idx] = editing; else state.posts.push(editing);
+  save();
+}
+
+/* ============================================================
+   MODAL HELPERS
+============================================================ */
+function showModal(sel){ document.body.style.overflow='hidden'; $(sel).classList.remove('hidden'); }
+function hideModal(sel){ $(sel).classList.add('hidden'); if ($('#dayModal').classList.contains('hidden') && $('#editorModal').classList.contains('hidden') && $('#fbModal').classList.contains('hidden')) document.body.style.overflow=''; }
+
+/* ============================================================
+   ACTIONS
+============================================================ */
+function enterPresent() {
+  clientMode = false;
+  readonly = true;
+  document.body.classList.add('present');
+  document.body.classList.remove('client');
+  $('#clientBanner').classList.add('hidden');
+  $('#btnExit').classList.remove('hidden');
+  const el = document.documentElement;
+  if (el.requestFullscreen) el.requestFullscreen().catch(()=>{});
+  render(); applyEditableState();
+}
+function enterClient() {
+  clientMode = true;
+  readonly = true;
+  document.body.classList.add('present', 'client');
+  $('#clientBanner').classList.remove('hidden');
+  $('#btnExit').classList.toggle('hidden', !!window.__SHARED__);
+  updateClientBanner();
+  render(); applyEditableState();
+}
+function exitView() {
+  if (window.__SHARED__) return; // shared client file stays in client mode
+  readonly = false; clientMode = false;
+  document.body.classList.remove('present', 'client');
+  $('#clientBanner').classList.add('hidden');
+  $('#btnExit').classList.add('hidden');
+  if (document.fullscreenElement) document.exitFullscreen().catch(()=>{});
+  render(); applyEditableState();
+}
+function updateClientBanner() {
+  const counts = { aprovado:0, aguardando:0, ajuste:0 };
+  state.posts.forEach(p => counts[getApproval(p.id)]++);
+  $('#approvalSummary').innerHTML = [['aprovado',counts.aprovado],['ajuste',counts.ajuste],['aguardando',counts.aguardando]]
+    .map(([k,n]) => `<span class="inline-flex items-center gap-1.5" style="color:${APPROVAL[k].fg}"><span class="w-2 h-2 rounded-full" style="background:${APPROVAL[k].dot}"></span>${n} ${APPROVAL[k].label}</span>`).join('');
+}
+
+/* ---- feedback modal + round-trip ---- */
+let fbAction = null;
+function openFeedbackModal(opts) {
+  fbAction = opts;
+  $('#fbTitle').textContent = opts.title;
+  $('#fbConfirm').textContent = opts.confirm || 'Enviar';
+  $('#fbHint').textContent = opts.hint || '';
+  $('#fbText').value = '';
+  $('#fbText').classList.remove('border-red-400');
+  showModal('#fbModal');
+  setTimeout(() => $('#fbText').focus(), 60);
+}
+function downloadFeedback() {
+  const blob = new Blob([JSON.stringify({ feedback }, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'feedback-cliente.json'; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  toast('Feedback exportado — envie ao social media');
+}
+function importFeedback(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const obj = JSON.parse(reader.result);
+      const incoming = obj.feedback || obj;
+      Object.keys(incoming).forEach(id => { feedback[id] = incoming[id]; });
+      saveFeedback(); render();
+      toast('Feedback do cliente importado');
+    } catch(e) { toast('Arquivo inválido'); }
+  };
+  reader.readAsText(file);
+}
+
+function exportPDF() { window.print(); }
+
+function exportHTML() {
+  // build a clean self-contained, read-only copy with data baked in
+  const data = JSON.stringify({ title: state.title, sub: state.sub, posts: state.posts });
+  const clone = document.documentElement.cloneNode(true);
+  // remove any prior injected data + transient bits
+  clone.querySelectorAll('#shared-data, #toast').forEach(n => n.remove());
+  // reset modals/overflow in the clone
+  clone.querySelectorAll('#dayModal, #editorModal, #fbModal').forEach(n => n.classList.add('hidden'));
+  const head = clone.querySelector('head');
+  const s = document.createElement('script');
+  s.id = 'shared-data';
+  s.textContent = 'window.__SHARED__ = ' + data + ';\nwindow.__FEEDBACK__ = ' + JSON.stringify(feedback) + ';';
+  head.appendChild(s);
+  const html = '<!doctype html>\n' + clone.outerHTML;
+  const blob = new Blob([html], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const name = (state.title || 'calendario').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+  a.href = url; a.download = `${name}-cliente.html`;
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(url), 1000);
+  toast('Arquivo gerado — pronto para enviar');
+}
+
+/* ============================================================
+   EVENTS
+============================================================ */
+function wireGlobal() {
+  $('#prevM').addEventListener('click', () => { view.m--; if (view.m<0){view.m=11;view.y--;} render(); });
+  $('#nextM').addEventListener('click', () => { view.m++; if (view.m>11){view.m=0;view.y++;} render(); });
+  $('#todayBtn').addEventListener('click', () => { view = { y: today.getFullYear(), m: today.getMonth() }; render(); });
+
+  $('#addBtn').addEventListener('click', () => openEditor(null, ymd(view.y, view.m, isToday(view.y,view.m,today.getDate())?today.getDate():1)));
+  $('#dayAddPost').addEventListener('click', () => openEditor(null, activeDate));
+
+  // delegated clicks on calendar / agenda
+  document.addEventListener('click', e => {
+    const postBtn = e.target.closest('[data-post]');
+    const quickAdd = e.target.closest('[data-quickadd]');
+    const dayEl = e.target.closest('[data-day]');
+    if (quickAdd && !readonly) { e.stopPropagation(); activeDate = quickAdd.dataset.quickadd; openEditor(null, activeDate); return; }
+    if (postBtn) {
+      e.stopPropagation();
+      const p = state.posts.find(x => x.id === postBtn.dataset.post);
+      if (p) { activeDate = p.date; openEditor(p); }
+      return;
+    }
+    if (dayEl && dayEl.dataset.day) { openDay(dayEl.dataset.day); }
+  });
+
+  // modal close buttons + scrim
+  document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => {
+    if (b.closest('#fbModal')) hideModal('#fbModal');
+    else if (b.closest('#editorModal')) hideModal('#editorModal');
+    else if (b.closest('#dayModal')) hideModal('#dayModal');
+  }));
+  document.querySelectorAll('.modal-scrim').forEach(s => s.addEventListener('click', () => {
+    if (s.closest('#fbModal')) hideModal('#fbModal');
+    else if (s.closest('#editorModal')) hideModal('#editorModal');
+    else if (s.closest('#dayModal')) hideModal('#dayModal');
+  }));
+  $('#editorBack').addEventListener('click', () => { hideModal('#editorModal'); });
+
+  // save / delete
+  $('#savePost').addEventListener('click', () => {
+    persistEditing();
+    hideModal('#editorModal');
+    render();
+    if (!$('#dayModal').classList.contains('hidden')) { activeDate = editing.date; renderDayBody(); openDayHeader(editing.date); }
+    toast('Postagem salva');
+  });
+  $('#deletePost').addEventListener('click', () => {
+    state.posts = state.posts.filter(p => p.id !== editing.id);
+    save(); hideModal('#editorModal'); render();
+    if (!$('#dayModal').classList.contains('hidden')) renderDayBody();
+    toast('Postagem excluída');
+  });
+
+  // present / client / share / pdf
+  $('#btnPresent').addEventListener('click', enterPresent);
+  $('#btnClient').addEventListener('click', enterClient);
+  $('#btnExit').addEventListener('click', exitView);
+  $('#btnDownloadFb').addEventListener('click', downloadFeedback);
+  $('#fbImport').addEventListener('change', e => { importFeedback(e.target.files[0]); e.target.value=''; });
+  $('#fbConfirm').addEventListener('click', () => {
+    const t = $('#fbText').value.trim();
+    if (fbAction && fbAction.requireText && !t) { $('#fbText').classList.add('border-red-400'); $('#fbText').focus(); return; }
+    if (fbAction && fbAction.onConfirm) fbAction.onConfirm(t);
+    hideModal('#fbModal');
+    refreshAfterFeedback();
+    toast((fbAction && fbAction.toast) || 'Feedback salvo');
+  });
+  $('#btnShare').addEventListener('click', e => { e.stopPropagation(); $('#shareMenu').classList.toggle('hidden'); });
+  document.addEventListener('click', e => { if (!e.target.closest('#btnShare') && !e.target.closest('#shareMenu')) $('#shareMenu').classList.add('hidden'); });
+  $('#shareMenu').querySelectorAll('[data-share]').forEach(b => b.addEventListener('click', () => {
+    $('#shareMenu').classList.add('hidden');
+    const a = b.dataset.share;
+    if (a==='html') exportHTML();
+    else if (a==='pdf') exportPDF();
+    else if (a==='present') enterPresent();
+    else if (a==='import') $('#fbImport').click();
+    else if (a==='clientlink') copyClientLink();
+  }));
+
+  // editable title/sub
+  ['#docTitle','#docSub'].forEach(sel => {
+    const el = $(sel);
+    el.addEventListener('focus', () => { if (readonly) el.blur(); });
+    el.addEventListener('blur', () => {
+      if (readonly) return;
+      if (sel==='#docTitle') state.title = el.textContent.trim() || 'Calendário de Conteúdo';
+      else state.sub = el.textContent.trim();
+      save();
+    });
+    el.addEventListener('keydown', e => { if (e.key==='Enter'){ e.preventDefault(); el.blur(); } });
+  });
+
+  // esc to close
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      if (!$('#editorModal').classList.contains('hidden')) hideModal('#editorModal');
+      else if (!$('#dayModal').classList.contains('hidden')) hideModal('#dayModal');
+    }
+  });
+}
+function openDayHeader(dateStr){ const d = parseYMD(dateStr); $('#dayModalWeekday').textContent = WEEKDAYS_FULL[d.getDay()]; $('#dayModalDate').textContent = `${d.getDate()} de ${MONTHS[d.getMonth()]}`; }
+
+/* ============================================================
+   INIT
+============================================================ */
+function applyEditableState() {
+  const editableAttr = readonly ? 'false' : 'true';
+  ['#docTitle','#docSub'].forEach(sel => {
+    const el = $(sel);
+    el.setAttribute('contenteditable', editableAttr);
+    el.classList.toggle('editing', !readonly);
+  });
+}
+
+(async function init() {
+  // Novo caminho: link fixo do cliente (?c=TOKEN), sempre puxando a versão mais
+  // recente do servidor. Se não houver esse parâmetro ou a busca falhar, o
+  // comportamento original (localStorage / window.__SHARED__) roda sem nenhuma alteração.
+  const params = new URLSearchParams(location.search);
+  const clientToken = params.get('c');
+  if (clientToken) {
+    loadFeedback();
+    const ok = await loadFromClientToken(clientToken);
+    if (ok) {
+      render();
+      wireGlobal();
+      applyEditableState();
+      enterClient();
+      return;
+    }
+    toast('Link inválido ou expirado');
+  }
+
+  load();
+  render();
+  wireGlobal();
+  applyEditableState();
+  if (clientMode) enterClient();
+  else if (readonly) enterPresent();
+})();
+</script>
+
+</body></html>
