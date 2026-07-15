@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pt-BR"><head><script>window["__codeletBootstrap__"]=JSON.parse('{"A":"A","B":"20260715-05-d05fd84"}');</script>
+<html lang="pt-BR"><head><script>window["__codeletBootstrap__"]=JSON.parse('{"A":"A","B":"20260715-05-d05fd84"}');</script><script src="/_sdk/f432b76fb310b513.telemetry_sdk.js" integrity="sha512-9FJQ55EKmmqhyyik8BhrMVfm0+iYYfb8uOlRsjtkxJMEI97qOVEI4PnHohDjQAtvAep0IOEpdQ64eki0sz62ug=="></script><script>window.__resources = {};</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Calendário de Conteúdo</title>
@@ -350,10 +350,9 @@ function save() {
 }
 
 /* ============================================================
-   SERVER LINK (Supabase) — link fixo do cliente, sempre atualizado
-   Não interfere em nada do fluxo local/offline existente:
-   localStorage, "Baixar HTML único", PDF e importação de feedback
-   continuam funcionando exatamente como antes.
+   SERVER LINK (Supabase) — link fixo do cliente, sempre atualizado.
+   Aditivo: não interfere no fluxo local/offline (localStorage,
+   "Baixar HTML único", PDF e importação de feedback continuam iguais).
 ============================================================ */
 const SUPABASE_URL = 'https://ibeiotkkjzvpbjrpuyma.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImliZWlvdGtranp2cGJqcnB1eW1hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQxMDc2MzgsImV4cCI6MjA5OTY4MzYzOH0.jQV3GXFJOBdY2YYnneXvdfGcem9VIgZyi6lz2ckRXEs';
@@ -367,7 +366,6 @@ try {
   }
 } catch(e) {}
 
-// Admin: creates (or reuses) the server-side calendar + tokens for this browser.
 async function ensureServerLink() {
   let adminToken = localStorage.getItem(ADMIN_TOKEN_KEY);
   let clientToken = localStorage.getItem(CLIENT_TOKEN_KEY);
@@ -382,7 +380,6 @@ async function ensureServerLink() {
   return { adminToken, clientToken };
 }
 
-// Admin: pushes current title/sub/posts to the server copy (never touches feedback).
 async function publishToServer() {
   const adminToken = localStorage.getItem(ADMIN_TOKEN_KEY);
   if (!adminToken || !supabaseClient) return;
@@ -396,15 +393,12 @@ async function publishToServer() {
   } catch(e) {}
 }
 
-// Called from save() — keeps the server copy fresh automatically once a
-// client link has been generated. No-op if no link exists yet (default state).
 function syncToServerIfLinked() {
   if (readonly) return;
   if (!localStorage.getItem(ADMIN_TOKEN_KEY)) return;
   publishToServer();
 }
 
-// Client (opened via ?c=TOKEN): fetches the calendar by its public client token.
 async function loadFromClientToken(token) {
   if (!supabaseClient) return false;
   try {
@@ -424,8 +418,6 @@ async function loadFromClientToken(token) {
   } catch(e) { return false; }
 }
 
-// Called from refreshAfterFeedback() — only active when the calendar was
-// loaded through a server client link (?c=TOKEN). Scoped to feedback only.
 async function syncFeedbackToServerIfLinked() {
   const token = window.__SERVER_CLIENT_TOKEN__;
   if (!token || !supabaseClient) return;
@@ -434,7 +426,6 @@ async function syncFeedbackToServerIfLinked() {
   } catch(e) {}
 }
 
-// Admin action: "Copiar link do cliente" in the share menu.
 async function copyClientLink() {
   try {
     const { clientToken } = await ensureServerLink();
@@ -489,7 +480,6 @@ function fmtTs(ts) {
   const d = new Date(ts);
   return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')} · ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
 }
-// small corner badge on thumbnails (only when approved / adjustment)
 function approvalBadge(id) {
   const a = getApproval(id);
   if (a === 'aguardando') return '';
@@ -506,7 +496,6 @@ function notesHtml(id) {
       <p class="flex items-center gap-1.5 font-mono text-[10px] text-faint mt-1.5"><span class="w-1.5 h-1.5 rounded-full bg-accent"></span>Cliente · ${fmtTs(n.ts)}</p>
     </div>`).join('')}</div>`;
 }
-// read-only block shown to the social media inside the editor
 function approvalInfoBlock(id) {
   const a = getApproval(id), c = APPROVAL[a], notes = getNotes(id);
   return `
@@ -518,7 +507,6 @@ function approvalInfoBlock(id) {
       ${notes.length ? `<div class="mt-2">${notesHtml(id)}</div>` : `<p class="text-[12px] text-sub">Nenhum comentário do cliente ainda.</p>`}
     </div>`;
 }
-// approval panel shown in the client/presentation viewer
 function approvalPanel(id) {
   const a = getApproval(id), c = APPROVAL[a], notes = getNotes(id);
   const status = `<div class="flex items-center gap-2"><span class="text-[11px] font-bold uppercase tracking-wide text-faint">Aprovação</span>${chip(c.label, c, {dot:true})}</div>`;
@@ -530,7 +518,7 @@ function approvalPanel(id) {
       ${status}
       ${notesHtml(id)}
       <div class="grid grid-cols-2 gap-2">
-        <button id="fbApprove" class="h-11 rounded-xl text-white text-[13.5px] font-bold transition hover:brightness-95 inline-flex items-center justify-center gap-1.5 ${a==='aprovado'?'ring-2 ring-offset-2':''}" style="background:${APPROVAL.aprovado.dot};box-shadow:0 0 0 0 ${APPROVAL.aprovado.dot}">
+        <button id="fbApprove" class="h-11 rounded-xl text-white text-[13.5px] font-bold transition hover:brightness-95 inline-flex items-center justify-center gap-1.5 ${a==='aprovado'?'ring-2 ring-offset-2':''}" style="background:${APPROVAL.aprovado.dot}">
           <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Aprovar
         </button>
         <button id="fbAdjust" class="h-11 rounded-xl text-white text-[13.5px] font-bold transition hover:brightness-95 inline-flex items-center justify-center gap-1.5" style="background:${APPROVAL.ajuste.dot}">
@@ -548,7 +536,6 @@ function renderChrome() {
   $('#docTitle').textContent = state.title || 'Calendário de Conteúdo';
   $('#docSub').textContent = state.sub || '';
   $('#monthLabel').textContent = `${MONTHS[view.m]} ${view.y}`;
-  // legend
   const leg = Object.entries(FORMATS).map(([k,c]) =>
     `<span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full" style="background:${c.dot}"></span>${c.label}</span>`
   ).join('');
@@ -735,7 +722,7 @@ function dayCard(p) {
 /* ============================================================
    EDITOR MODAL
 ============================================================ */
-let editing = null; // post object being edited (draft)
+let editing = null;
 let editingExisting = false;
 
 function openEditor(post, dateStr) {
@@ -754,8 +741,6 @@ function openEditor(post, dateStr) {
 function renderEditor() {
   const p = editing;
   const ro = readonly;
-  const d = parseYMD(p.date);
-  const dateLabel = `${WEEKDAYS[d.getDay()]}, ${d.getDate()} ${MONTHS[d.getMonth()].slice(0,3)}`;
 
   if (ro) { renderViewer(p); return; }
 
@@ -770,7 +755,6 @@ function renderEditor() {
 
   $('#editorBody').innerHTML = `
   <div class="grid md:grid-cols-[300px_1fr] gap-0">
-    <!-- MEDIA -->
     <div class="p-4 md:border-r border-line space-y-3 bg-line2/30">
       <div>
         <label class="block text-[11.5px] font-bold uppercase tracking-wide text-faint mb-1.5">Imagem</label>
@@ -794,10 +778,8 @@ function renderEditor() {
       </div>
     </div>
 
-    <!-- FIELDS -->
     <div class="p-4 space-y-4">
       ${approvalInfoBlock(p.id)}
-      <!-- date + time + platform -->
       <div class="grid grid-cols-2 gap-3">
         <div>
           <label class="block text-[11.5px] font-bold uppercase tracking-wide text-faint mb-1.5">Data</label>
@@ -809,13 +791,11 @@ function renderEditor() {
         </div>
       </div>
 
-      <!-- format -->
       <div>
         <label class="block text-[11.5px] font-bold uppercase tracking-wide text-faint mb-1.5">Formato</label>
         <div id="fmtGroup" class="flex flex-wrap gap-1.5">${fmtBtns}</div>
       </div>
 
-      <!-- status + platform -->
       <div class="grid grid-cols-2 gap-3">
         <div>
           <label class="block text-[11.5px] font-bold uppercase tracking-wide text-faint mb-1.5">Status</label>
@@ -827,13 +807,11 @@ function renderEditor() {
         </div>
       </div>
 
-      <!-- caption -->
       <div>
         <label class="block text-[11.5px] font-bold uppercase tracking-wide text-faint mb-1.5">Legenda</label>
         <textarea id="fCaption" rows="3" placeholder="Escreva a legenda da publicação…" class="field w-full px-3 py-2 rounded-lg border border-line bg-card text-[13.5px] leading-relaxed resize-y">${esc(p.caption)}</textarea>
       </div>
 
-      <!-- objective + audio -->
       <div class="grid sm:grid-cols-2 gap-3">
         <div>
           <label class="block text-[11.5px] font-bold uppercase tracking-wide text-faint mb-1.5">Objetivo / CTA</label>
@@ -845,13 +823,11 @@ function renderEditor() {
         </div>
       </div>
 
-      <!-- briefing -->
       <div>
         <label class="block text-[11.5px] font-bold uppercase tracking-wide text-faint mb-1.5">Briefing</label>
         <textarea id="fBriefing" rows="3" placeholder="Roteiro, referências, instruções de produção…" class="field w-full px-3 py-2 rounded-lg border border-line bg-card text-[13.5px] leading-relaxed resize-y">${esc(p.briefing)}</textarea>
       </div>
 
-      <!-- hashtags -->
       <div>
         <label class="block text-[11.5px] font-bold uppercase tracking-wide text-faint mb-1.5">Hashtags</label>
         <textarea id="fHashtags" rows="2" placeholder="#marketing #socialmedia #conteudo" class="field w-full px-3 py-2 rounded-lg border border-line bg-card text-[13px] font-medium text-accent resize-y">${esc(p.hashtags)}</textarea>
@@ -920,25 +896,21 @@ function refreshAfterFeedback() {
 }
 
 function wireEditor() {
-  // format buttons
   $('#fmtGroup').querySelectorAll('[data-fmt]').forEach(b => {
     b.addEventListener('click', () => { editing.format = b.dataset.fmt; renderEditor(); });
   });
-  // image
   const imgInput = $('#imgInput');
   $('#imgDrop').addEventListener('click', e => { if (e.target.closest('#imgRemove')) return; imgInput.click(); });
   imgInput.addEventListener('change', e => handleFile(e.target.files[0], 'image'));
   setupDrop($('#imgDrop'), 'image');
   const imgRemove = $('#imgRemove');
   if (imgRemove) imgRemove.addEventListener('click', e => { e.stopPropagation(); editing.image=''; renderEditor(); });
-  // video
   const vidInput = $('#vidInput');
   const vidDrop = $('#vidDrop');
   if (vidDrop) { vidDrop.addEventListener('click', () => vidInput.click()); setupDrop(vidDrop, 'video'); }
   vidInput.addEventListener('change', e => handleFile(e.target.files[0], 'video'));
   const vidRemove = $('#vidRemove');
   if (vidRemove) vidRemove.addEventListener('click', e => { e.stopPropagation(); editing.video=''; renderEditor(); });
-  // text fields (live-bind to draft)
   const bind = (id, key) => { const el = $(id); if (el) el.addEventListener('input', () => editing[key] = el.value); };
   bind('#fTime','time'); bind('#fCaption','caption'); bind('#fBriefing','briefing');
   bind('#fHashtags','hashtags'); bind('#fObjective','objective'); bind('#fAudio','audio');
@@ -999,7 +971,7 @@ function enterClient() {
   render(); applyEditableState();
 }
 function exitView() {
-  if (window.__SHARED__) return; // shared client file stays in client mode
+  if (window.__SHARED__) return;
   readonly = false; clientMode = false;
   document.body.classList.remove('present', 'client');
   $('#clientBanner').classList.add('hidden');
@@ -1014,7 +986,6 @@ function updateClientBanner() {
     .map(([k,n]) => `<span class="inline-flex items-center gap-1.5" style="color:${APPROVAL[k].fg}"><span class="w-2 h-2 rounded-full" style="background:${APPROVAL[k].dot}"></span>${n} ${APPROVAL[k].label}</span>`).join('');
 }
 
-/* ---- feedback modal + round-trip ---- */
 let fbAction = null;
 function openFeedbackModal(opts) {
   fbAction = opts;
@@ -1052,12 +1023,9 @@ function importFeedback(file) {
 function exportPDF() { window.print(); }
 
 function exportHTML() {
-  // build a clean self-contained, read-only copy with data baked in
   const data = JSON.stringify({ title: state.title, sub: state.sub, posts: state.posts });
   const clone = document.documentElement.cloneNode(true);
-  // remove any prior injected data + transient bits
   clone.querySelectorAll('#shared-data, #toast').forEach(n => n.remove());
-  // reset modals/overflow in the clone
   clone.querySelectorAll('#dayModal, #editorModal, #fbModal').forEach(n => n.classList.add('hidden'));
   const head = clone.querySelector('head');
   const s = document.createElement('script');
@@ -1086,7 +1054,6 @@ function wireGlobal() {
   $('#addBtn').addEventListener('click', () => openEditor(null, ymd(view.y, view.m, isToday(view.y,view.m,today.getDate())?today.getDate():1)));
   $('#dayAddPost').addEventListener('click', () => openEditor(null, activeDate));
 
-  // delegated clicks on calendar / agenda
   document.addEventListener('click', e => {
     const postBtn = e.target.closest('[data-post]');
     const quickAdd = e.target.closest('[data-quickadd]');
@@ -1101,7 +1068,6 @@ function wireGlobal() {
     if (dayEl && dayEl.dataset.day) { openDay(dayEl.dataset.day); }
   });
 
-  // modal close buttons + scrim
   document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => {
     if (b.closest('#fbModal')) hideModal('#fbModal');
     else if (b.closest('#editorModal')) hideModal('#editorModal');
@@ -1114,7 +1080,6 @@ function wireGlobal() {
   }));
   $('#editorBack').addEventListener('click', () => { hideModal('#editorModal'); });
 
-  // save / delete
   $('#savePost').addEventListener('click', () => {
     persistEditing();
     hideModal('#editorModal');
@@ -1129,7 +1094,6 @@ function wireGlobal() {
     toast('Postagem excluída');
   });
 
-  // present / client / share / pdf
   $('#btnPresent').addEventListener('click', enterPresent);
   $('#btnClient').addEventListener('click', enterClient);
   $('#btnExit').addEventListener('click', exitView);
@@ -1155,7 +1119,6 @@ function wireGlobal() {
     else if (a==='clientlink') copyClientLink();
   }));
 
-  // editable title/sub
   ['#docTitle','#docSub'].forEach(sel => {
     const el = $(sel);
     el.addEventListener('focus', () => { if (readonly) el.blur(); });
@@ -1168,7 +1131,6 @@ function wireGlobal() {
     el.addEventListener('keydown', e => { if (e.key==='Enter'){ e.preventDefault(); el.blur(); } });
   });
 
-  // esc to close
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
       if (!$('#editorModal').classList.contains('hidden')) hideModal('#editorModal');
@@ -1191,9 +1153,8 @@ function applyEditableState() {
 }
 
 (async function init() {
-  // Novo caminho: link fixo do cliente (?c=TOKEN), sempre puxando a versão mais
-  // recente do servidor. Se não houver esse parâmetro ou a busca falhar, o
-  // comportamento original (localStorage / window.__SHARED__) roda sem nenhuma alteração.
+  // Link fixo do cliente (?c=TOKEN): busca a versão mais recente no servidor.
+  // Sem esse parâmetro, ou se a busca falhar, o fluxo original roda sem alteração.
   const params = new URLSearchParams(location.search);
   const clientToken = params.get('c');
   if (clientToken) {
